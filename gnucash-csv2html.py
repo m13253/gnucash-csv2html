@@ -27,13 +27,13 @@ from typing import *
 
 def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List[str]]) -> None:
     if entry is not None and len(splits) == 2:
-        entry[4] = splits[1][2]
+        entry[4] = splits[1][3]
         fo.write('        <tr class="{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
     else:
         if entry is not None:
             fo.write('        <tr class="{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
         for split in splits:
-            fo.write('        <tr class="row-split"><td class="col-date"></td><td class="col-action">{}</td><td class="col-memo">{}</td><td class="col-account">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance"></td><td class="col-rate-price">{}</td></tr>\n'.format(*split))
+            fo.write('        <tr class="{}"><td class="col-date"></td><td class="col-action">{}</td><td class="col-memo">{}</td><td class="col-account">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance"></td><td class="col-rate-price">{}</td></tr>\n'.format(*split))
 
 
 def main(argv: List[str]) -> int:
@@ -53,16 +53,19 @@ def main(argv: List[str]) -> int:
     fo.write('    <meta charset="utf-8" />\n')
     fo.write('    <style type="text/css">\n')
     fo.write('      body { margin: 0px; }')
-    fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.2; width: 100%; }\n')
+    fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.375; width: 100%; }\n')
     fo.write('      table.ledger thead { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
     fo.write('      table.ledger thead th { border-top: 0.75pt solid; border-bottom: 0.75pt solid; font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger tbody { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
     fo.write('      table.ledger tbody td { padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger tbody tr.row-entry-odd td { border-top: 0.75pt solid; border-bottom: 0.75pt solid; }\n')
     fo.write('      table.ledger tbody tr.row-entry-even td { border-top: 0.75pt solid; border-bottom: 0.75pt solid; }\n')
-    fo.write('      table.ledger tbody tr.row-split { page-break-before: avoid; }\n')
-    fo.write('      table.ledger tbody tr.row-split td { border-top: 0.75pt solid #999999; page-break-before: avoid; }\n')
-    fo.write('      table.ledger tbody tr.row-split td.col-date { border-top: none; }\n')
+    fo.write('      table.ledger tbody tr.row-split-first { page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-first td { page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-first td.col-date { border-top: none; }\n')
+    fo.write('      table.ledger tbody tr.row-split-rest { page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-rest td { border-top: 0.75pt solid #999999; page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-rest td.col-date { border-top: none; }\n')
     fo.write('      table.ledger .col-date { text-align: right; white-space: pre; }\n')
     fo.write('      table.ledger .col-num { text-align: left; white-space: pre; }\n')
     fo.write('      table.ledger .col-action { text-align: right; white-space: pre; }\n')
@@ -75,15 +78,17 @@ def main(argv: List[str]) -> int:
     fo.write('      table.ledger .col-balance { text-align: right; white-space: pre; }\n')
     fo.write('      table.ledger .col-rate-price { text-align: right; white-space: pre; }\n')
     fo.write('      table.ledger div.inline-block { display: inline-block; text-align: left; }\n')
-    fo.write('      table.ledger span.symbol { color: #808080; }\n')
-    fo.write('      table.ledger span.negative-symbol { color: #808080; }\n')
+    fo.write('      table.ledger span.symbol { color: #999999; }\n')
+    fo.write('      table.ledger span.negative-symbol { color: #999999; }\n')
     fo.write('      table.ledger span.negative { font-weight: bold; }\n')
     fo.write('      @media not print {\n')
     fo.write('        table.ledger thead { background-color: #96b183; }\n')
     fo.write('        table.ledger tbody tr.row-entry-odd { background-color: #bfdeb9; }\n')
     fo.write('        table.ledger tbody tr.row-entry-even { background-color: #f6ffda; }\n')
-    fo.write('        table.ledger tbody tr.row-split { background-color: #ede7d3; }\n')
-    fo.write('        table.ledger tbody tr.row-split td.col-date { background-color: white; }\n')
+    fo.write('        table.ledger tbody tr.row-split-first { background-color: #ede7d3; }\n')
+    fo.write('        table.ledger tbody tr.row-split-first td.col-date { background-color: white; }\n')
+    fo.write('        table.ledger tbody tr.row-split-rest { background-color: #ede7d3; }\n')
+    fo.write('        table.ledger tbody tr.row-split-rest td.col-date { background-color: white; }\n')
     fo.write('        table.ledger span.symbol { color: #777777; }\n')
     fo.write('        table.ledger span.negative-symbol { color: #974e3d; }\n')
     fo.write('        table.ledger span.negative { color: #a40000; font-weight: normal; }\n')
@@ -144,7 +149,7 @@ def main(argv: List[str]) -> int:
 
             is_entry_odd = not is_entry_odd
             entry = ['row-entry-odd' if is_entry_odd else 'row-entry-even', html.escape(row_date), html.escape(row_num), html.escape(row_description), '', row_debit, row_credit, row_balance, html.escape(row_rate_price)]
-            splits = [[html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)]]
+            splits = [['row-split-first', html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)]]
 
         else:
             row_action = row.get('Action', '') or ''
@@ -166,7 +171,7 @@ def main(argv: List[str]) -> int:
                 row_debit = '<span class="symbol">{}</span>{}'.format(html.escape(symbol), html.escape(row_amount_num))
                 row_credit = ''
 
-            splits.append([html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)])
+            splits.append(['row-split-rest', html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)])
 
     fi.close()
     if len(splits) != 0:
