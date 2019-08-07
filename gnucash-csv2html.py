@@ -53,7 +53,7 @@ def main(argv: List[str]) -> int:
     fo.write('  <head>\n')
     fo.write('    <meta charset="utf-8" />\n')
     fo.write('    <style type="text/css">\n')
-    fo.write('      body { margin: 0px; }')
+    fo.write('      body { margin: 0px; }\n')
     fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.375; width: 100%; }\n')
     fo.write('      table.ledger thead th { font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger thead th.col-date { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
