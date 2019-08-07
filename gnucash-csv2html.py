@@ -20,6 +20,7 @@ import csv
 import decimal
 import enum
 import html
+import re
 import sys
 import typing
 from typing import *
@@ -27,11 +28,11 @@ from typing import *
 
 def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List[str]]) -> None:
     if entry is not None and len(splits) == 2:
-        entry[4] = splits[1][3]
-        fo.write('        <tr class="{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
+        entry[5] = splits[1][3]
+        fo.write('        <tr class="{}" name="transaction-{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
     else:
         if entry is not None:
-            fo.write('        <tr class="{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
+            fo.write('        <tr class="{}" name="transaction-{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
         for split in splits:
             fo.write('        <tr class="{}"><td class="col-date"></td><td class="col-action">{}</td><td class="col-memo">{}</td><td class="col-account">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance"></td><td class="col-rate-price">{}</td></tr>\n'.format(*split))
 
@@ -123,7 +124,9 @@ def main(argv: List[str]) -> int:
     is_entry_odd = False
 
     for row in reader:
-        if row.get('Transaction ID'):
+        row_transaction_id = row.get('Transaction ID', '') or ''
+
+        if row_transaction_id:
             if len(splits) != 0:
                 print_entry(fo, entry, splits)
 
@@ -137,28 +140,37 @@ def main(argv: List[str]) -> int:
             row_amount_num = row.get('Amount Num.', '') or ''
             row_rate_price = row.get('Rate/Price', '') or ''
 
-            symbol = row_amount_with_sym[:max(len(row_amount_with_sym) - len(row_amount_num), 0)]
-            amount_decimal = decimal.Decimal(row_amount_num.replace(',', '') or '0')
-            if amount_decimal.is_zero():
+            amount_is_negative = row_amount_num.startswith('-') or (row_amount_num.startswith('(') and row_amount_num.endswith(')'))
+            amount_abs = re.sub('[^.\\d]', '', row_amount_num)
+            amount_symbol = re.sub('[- (),.\\d]', '', row_amount_with_sym)
+            amount_decimal: Optional[decimal.Decimal] = None
+            if amount_abs:
+                amount_decimal = decimal.Decimal(amount_abs)
+
+            if amount_decimal is None or amount_decimal.is_zero():
                 row_debit = ''
                 row_credit = ''
-            elif row_amount_num.startswith('-'):
+            elif amount_is_negative:
                 row_debit = ''
-                row_credit = '<span class="symbol">{}</span>{}'.format(html.escape(symbol), html.escape(row_amount_num[1:]))
+                row_credit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
+                if row_account in balance:
+                    balance[row_account] -= amount_decimal
+                else:
+                    balance[row_account] = -amount_decimal
             else:
-                row_debit = '<span class="symbol">{}</span>{}'.format(html.escape(symbol), html.escape(row_amount_num))
+                row_debit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 row_credit = ''
-            if row_account in balance:
-                balance[row_account] += amount_decimal
-            else:
-                balance[row_account] = amount_decimal
+                if row_account in balance:
+                    balance[row_account] += amount_decimal
+                else:
+                    balance[row_account] = amount_decimal
             if balance[row_account] < 0:
-                row_balance = '<span class="negative-symbol">{}</span><span class="negative">{:,}</span>'.format(html.escape(symbol), balance[row_account])
+                row_balance = '<span class="negative-symbol">{}</span><span class="negative">{:,}</span>'.format(html.escape(amount_symbol), balance[row_account])
             else:
-                row_balance = '<span class="symbol">{}</span>{:,}'.format(html.escape(symbol), balance[row_account])
+                row_balance = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), balance[row_account])
 
             is_entry_odd = not is_entry_odd
-            entry = ['row-entry-odd' if is_entry_odd else 'row-entry-even', html.escape(row_date), html.escape(row_num), html.escape(row_description), '', row_debit, row_credit, row_balance, html.escape(row_rate_price)]
+            entry = ['row-entry-odd' if is_entry_odd else 'row-entry-even', html.escape(row_transaction_id), html.escape(row_date), html.escape(row_num), html.escape(row_description), '', row_debit, row_credit, row_balance, html.escape(row_rate_price)]
             splits = [['row-split-first', html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)]]
 
         else:
@@ -169,16 +181,21 @@ def main(argv: List[str]) -> int:
             row_amount_num = row.get('Amount Num.', '') or ''
             row_rate_price = row.get('Rate/Price', '') or ''
 
-            symbol = row_amount_with_sym[:max(len(row_amount_with_sym) - len(row_amount_num), 0)]
-            amount_decimal = decimal.Decimal(amount_decimal or '0')
-            if amount_decimal.is_zero():
+            amount_is_negative = row_amount_num.startswith('-') or (row_amount_num.startswith('(') and row_amount_num.endswith(')'))
+            amount_abs = re.sub('[^.\\d]', '', row_amount_num)
+            amount_symbol = re.sub('[- (),.\\d]', '', row_amount_with_sym)
+            amount_decimal = None
+            if amount_abs:
+                amount_decimal = decimal.Decimal(amount_abs)
+
+            if amount_decimal is None or amount_decimal.is_zero():
                 row_debit = ''
                 row_credit = ''
-            elif row_amount_num.startswith('-'):
+            elif amount_is_negative:
                 row_debit = ''
-                row_credit = '<span class="symbol">{}</span>{}'.format(html.escape(symbol), html.escape(row_amount_num[1:]))
+                row_credit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
             else:
-                row_debit = '<span class="symbol">{}</span>{}'.format(html.escape(symbol), html.escape(row_amount_num))
+                row_debit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 row_credit = ''
 
             splits.append(['row-split-rest', html.escape(row_action), html.escape(row_memo), html.escape(row_account), row_debit, row_credit, html.escape(row_rate_price)])
