@@ -27,7 +27,7 @@ from typing import *
 
 
 def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List[str]]) -> None:
-    if entry is not None and len(splits) == 2:
+    if entry is not None and len(splits) == 2 and not (splits[0][1] or splits[0][2] or splits[1][1] or splits[1][2]):
         entry[5] = splits[1][3]
         fo.write('        <tr class="{}" name="transaction-{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
     else:
