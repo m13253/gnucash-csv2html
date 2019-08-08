@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import argparse
 import csv
 import decimal
 import enum
@@ -38,10 +39,14 @@ def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List
 
 
 def main(argv: List[str]) -> int:
-    if len(argv) != 3:
-        print('Usage: {} <input.csv> <output.html>\n'.format(argv[0]))
-        print()
-        return 0
+    parser = argparse.ArgumentParser(description='Convert CSV files exported by GnuCash to HTML format.')
+    parser.add_argument('input_csv', help='input CSV file')
+    parser.add_argument('output_html', help='output HTML file')
+    parser.add_argument('--credit', action='store_true', help='invert the sign of running balance')
+    parser.add_argument('--script', action='append', default=[], metavar='JS_FILE', help='include JavaScript')
+    parser.add_argument('--style', action='append', default=[], metavar='CSS_FILE', help='include CSS stylesheet')
+    parser.add_argument('--title', help='title of the page')
+    args = parser.parse_args()
 
     fi = open(argv[1], 'r', encoding='utf-8-sig', errors='replace')
     reader = csv.DictReader(fi, dialect='excel')
@@ -52,8 +57,13 @@ def main(argv: List[str]) -> int:
     fo.write('<html>\n')
     fo.write('  <head>\n')
     fo.write('    <meta charset="utf-8" />\n')
+
+    if args.title is not None:
+        fo.write('    <title>{}</title>\n'.format(html.escape(args.title)))
+
     fo.write('    <style type="text/css">\n')
     fo.write('      body { margin: 0px; }\n')
+    fo.write('      h1.ledger { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18pt; line-height: 1.375; font-weight: bold; margin: 6pt 6pt 6pt 6pt; }\n')
     fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.375; width: 100%; }\n')
     fo.write('      table.ledger thead th { font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger thead th.col-date { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
@@ -109,8 +119,16 @@ def main(argv: List[str]) -> int:
     fo.write('      }\n')
     fo.write('      @page { margin: 1cm; }\n')
     fo.write('    </style>\n')
+
+    for style in args.style:
+        fo.write('    <link rel="stylesheet" type="text/css" href="{}" />\n'.format(html.escape(style)))
+
     fo.write('  </head>\n')
     fo.write('  <body>\n')
+
+    if args.title is not None:
+        fo.write('    <h1 class="ledger">{}</h1>\n'.format(html.escape(args.title)))
+
     fo.write('    <table class="ledger">\n')
     fo.write('      <thead>\n')
     fo.write('        <tr><th class="col-date" rowspan="2">Date</th><th class="col-num">Num</th><th class="col-description">Description</th><th class="col-transfer">Transfer</th><th class="col-debit" rowspan="2">Debit</th><th class="col-credit" rowspan="2">Credit</th><th class="col-balance" rowspan="2">Balance</th><th class="col-rate-price" rowspan="2"><div class="align-block">Rate/<br />Price</div></th></tr>\n')
@@ -154,16 +172,28 @@ def main(argv: List[str]) -> int:
                 row_debit = ''
                 row_credit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 if row_account in balance:
-                    balance[row_account] -= amount_decimal
+                    if args.liability:
+                        balance[row_account] += amount_decimal
+                    else:
+                        balance[row_account] -= amount_decimal
                 else:
-                    balance[row_account] = -amount_decimal
+                    if args.liability:
+                        balance[row_account] = amount_decimal
+                    else:
+                        balance[row_account] = -amount_decimal
             else:
                 row_debit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 row_credit = ''
                 if row_account in balance:
-                    balance[row_account] += amount_decimal
+                    if args.liability:
+                        balance[row_account] -= amount_decimal
+                    else:
+                        balance[row_account] += amount_decimal
                 else:
-                    balance[row_account] = amount_decimal
+                    if args.liability:
+                        balance[row_account] = -amount_decimal
+                    else:
+                        balance[row_account] = amount_decimal
             if balance[row_account] < 0:
                 row_balance = '<span class="negative-symbol">{}</span><span class="negative">{:,}</span>'.format(html.escape(amount_symbol), balance[row_account])
             else:
@@ -206,6 +236,10 @@ def main(argv: List[str]) -> int:
 
     fo.write('      </tbody>\n')
     fo.write('    </table>\n')
+
+    for script in args.script:
+        fo.write('    <script language="javascript" src="{}"></script>\n'.format(html.escape(script)))
+
     fo.write('  </body>\n')
     fo.write('</html>\n')
     fo.close()
