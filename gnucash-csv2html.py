@@ -65,7 +65,7 @@ def main(argv: List[str]) -> int:
     fo.write('      body { margin: 0px; }\n')
     fo.write('      h1.ledger { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18pt; line-height: 1.375; font-weight: bold; margin: 6pt 6pt 6pt 6pt; }\n')
     fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.375; width: 100%; }\n')
-    fo.write('      table.ledger thead th { font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
+    fo.write('      table.ledger thead th { break-inside: avoid; font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger thead th.col-date { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
     fo.write('      table.ledger thead th.col-num { border-top: 1.5pt solid; border-bottom: 0.75pt solid; }\n')
     fo.write('      table.ledger thead th.col-action { border-bottom: 1.5pt solid; }\n')
@@ -78,15 +78,14 @@ def main(argv: List[str]) -> int:
     fo.write('      table.ledger thead th.col-balance { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
     fo.write('      table.ledger thead th.col-rate-price { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
     fo.write('      table.ledger thead th.col-rate-price div.align-block { display: inline-block; text-align: left; }\n')
-    fo.write('      table.ledger tbody td { padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
+    fo.write('      table.ledger tbody td { break-inside: avoid; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger tbody tr.row-entry-odd td { border-top: 0.75pt solid; border-bottom: 0.75pt solid; }\n')
     fo.write('      table.ledger tbody tr.row-entry-even td { border-top: 0.75pt solid; border-bottom: 0.75pt solid; }\n')
     fo.write('      table.ledger tbody tr:last-child td { border-bottom: 1.5pt solid; }\n')
-    fo.write('      table.ledger tbody tr.row-split-first { page-break-before: avoid; }\n')
-    fo.write('      table.ledger tbody tr.row-split-first td { page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-first { break-before: avoid; page-break-before: avoid; }\n')
     fo.write('      table.ledger tbody tr.row-split-first td.col-date { border-top: none; }\n')
-    fo.write('      table.ledger tbody tr.row-split-rest { page-break-before: avoid; }\n')
-    fo.write('      table.ledger tbody tr.row-split-rest td { border-top: 0.75pt solid #999999; page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-rest { break-before: avoid; page-break-before: avoid; }\n')
+    fo.write('      table.ledger tbody tr.row-split-rest td { border-top: 0.75pt solid #999999; }\n')
     fo.write('      table.ledger tbody tr.row-split-rest td.col-date { border-top: none; }\n')
     fo.write('      table.ledger .col-date { text-align: right; white-space: pre; }\n')
     fo.write('      table.ledger .col-num { text-align: left; white-space: pre; }\n')
@@ -172,12 +171,12 @@ def main(argv: List[str]) -> int:
                 row_debit = ''
                 row_credit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 if row_account in balance:
-                    if args.liability:
+                    if args.credit:
                         balance[row_account] += amount_decimal
                     else:
                         balance[row_account] -= amount_decimal
                 else:
-                    if args.liability:
+                    if args.credit:
                         balance[row_account] = amount_decimal
                     else:
                         balance[row_account] = -amount_decimal
@@ -185,12 +184,12 @@ def main(argv: List[str]) -> int:
                 row_debit = '<span class="symbol">{}</span>{:,}'.format(html.escape(amount_symbol), amount_decimal)
                 row_credit = ''
                 if row_account in balance:
-                    if args.liability:
+                    if args.credit:
                         balance[row_account] -= amount_decimal
                     else:
                         balance[row_account] += amount_decimal
                 else:
-                    if args.liability:
+                    if args.credit:
                         balance[row_account] = -amount_decimal
                     else:
                         balance[row_account] = amount_decimal
