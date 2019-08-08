@@ -26,8 +26,32 @@ import sys
 import typing
 from typing import *
 
+def print_account_header(fo: typing.TextIO, header: Optional[str]) -> None:
+    if header is not None:
+        fo.write('    <h1 class="ledger">{}</h1>\n'.format(html.escape(header)))
 
-def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List[str]]) -> None:
+    fo.write('    <table class="ledger">\n')
+    fo.write('      <thead>\n')
+    fo.write('        <tr><th class="col-date" rowspan="2">Date</th><th class="col-num">Num</th><th class="col-description">Description</th><th class="col-transfer">Transfer</th><th class="col-debit" rowspan="2">Debit</th><th class="col-credit" rowspan="2">Credit</th><th class="col-balance" rowspan="2">Balance</th><th class="col-rate-price" rowspan="2"><div class="align-block">Rate/<br />Price</div></th></tr>\n')
+    fo.write('        <tr><th class="col-action">Action</th><th class="col-memo">Memo</th><th class="col-account">Account</th></tr>\n')
+    fo.write('      </thead>\n')
+    fo.write('      <tbody>\n')
+
+
+def print_account_footer(fo: typing.TextIO) -> None:
+    fo.write('      </tbody>\n')
+    fo.write('    </table>\n')
+
+
+def print_entry(fo: typing.TextIO, entry: Optional[List[str]], splits: List[List[str]], last_header: List[str]) -> None:
+    if len(last_header) == 0:
+        last_header.append(splits[0][3])
+        print_account_header(fo, last_header[0])
+    elif last_header[0] != splits[0][3]:
+        print_account_footer(fo)
+        print('Warning: The CSV file contains multiple accounts, which is not supported by the program and may cause missing transactions.', file=sys.stderr, flush=True)
+        last_header[0] = splits[0][3]
+        print_account_header(fo, last_header[0])
     if entry is not None and len(splits) == 2 and not (splits[0][1] or splits[0][2] or splits[1][1] or splits[1][2]):
         entry[5] = splits[1][3]
         fo.write('        <tr class="{}" name="transaction-{}"><td class="col-date">{}</td><td class="col-num">{}</td><td class="col-description">{}</td><td class="col-transfer">{}</td><td class="col-debit">{}</td><td class="col-credit">{}</td><td class="col-balance">{}</td><td class="col-rate-price">{}</td></tr>\n'.format(*entry))
@@ -63,7 +87,7 @@ def main(argv: List[str]) -> int:
 
     fo.write('    <style type="text/css">\n')
     fo.write('      body { margin: 0px; }\n')
-    fo.write('      h1.ledger { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18pt; line-height: 1.375; font-weight: bold; margin: 6pt 6pt 6pt 6pt; }\n')
+    fo.write('      h1.ledger { break-after: avoid; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 18pt; line-height: 1.375; font-weight: bold; margin: 6pt 6pt 6pt 6pt; page-break-after: avoid; }\n')
     fo.write('      table.ledger { border-collapse: collapse; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; line-height: 1.375; width: 100%; }\n')
     fo.write('      table.ledger thead th { break-inside: avoid; font-weight: normal; padding: 0px 0.5em; page-break-inside: avoid; vertical-align: top; }\n')
     fo.write('      table.ledger thead th.col-date { border-top: 1.5pt solid; border-bottom: 1.5pt solid; }\n')
@@ -125,16 +149,7 @@ def main(argv: List[str]) -> int:
     fo.write('  </head>\n')
     fo.write('  <body>\n')
 
-    if args.title is not None:
-        fo.write('    <h1 class="ledger">{}</h1>\n'.format(html.escape(args.title)))
-
-    fo.write('    <table class="ledger">\n')
-    fo.write('      <thead>\n')
-    fo.write('        <tr><th class="col-date" rowspan="2">Date</th><th class="col-num">Num</th><th class="col-description">Description</th><th class="col-transfer">Transfer</th><th class="col-debit" rowspan="2">Debit</th><th class="col-credit" rowspan="2">Credit</th><th class="col-balance" rowspan="2">Balance</th><th class="col-rate-price" rowspan="2"><div class="align-block">Rate/<br />Price</div></th></tr>\n')
-    fo.write('        <tr><th class="col-action">Action</th><th class="col-memo">Memo</th><th class="col-account">Account</th></tr>\n')
-    fo.write('      </thead>\n')
-    fo.write('      <tbody>\n')
-
+    last_header: List[str] = []
     balance: Dict[str, decimal.Decimal] = {}
     entry: Optional[List[str]] = None
     splits: List[List[str]] = []
@@ -145,7 +160,7 @@ def main(argv: List[str]) -> int:
 
         if row_transaction_id:
             if len(splits) != 0:
-                print_entry(fo, entry, splits)
+                print_entry(fo, entry, splits, last_header)
 
             row_date = row.get('Date', '') or ''
             row_num = row.get('Number', '') or ''
@@ -231,7 +246,7 @@ def main(argv: List[str]) -> int:
 
     fi.close()
     if len(splits) != 0:
-        print_entry(fo, entry, splits)
+        print_entry(fo, entry, splits, last_header)
 
     fo.write('      </tbody>\n')
     fo.write('    </table>\n')
